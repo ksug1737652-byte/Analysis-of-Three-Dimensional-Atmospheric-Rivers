@@ -14,3 +14,11 @@ The file "ar_trend_grl.py" is a code for calculation and visualization of the lo
 The file "ar_frequency_load.py" is a code for visualization on AR frequency distribution.
 
 The file "vertical_integration.py" is a code for calculation of the vertically integrated variables.
+
+The file "ar_detection_slice.py" is a code for visualization of three-dimensional AR structure.
+
+The file "ar_fig_jare44.py" is a code for visualization of atmospheric environment during AR events and extreme precipitation events.
+
+The file "Fuji_AR_time_evolution_plot_v2.py" is a code for visualization of time evolutions of precipitation obtained from observation and reanalysis with the durations of ARs.
+
+The file "satpy_composite.py" is a code for visualization of MODIS satellite image.
