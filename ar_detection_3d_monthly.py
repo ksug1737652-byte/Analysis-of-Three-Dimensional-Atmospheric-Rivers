@@ -274,8 +274,8 @@ for year in years:
             # q_m = q_mean[Din.month-1]
             # u_m = u_mean[Din.month-1]
             # v_m = v_mean[Din.month-1]
-            n_ivt_m = n_ivt_data.mean(axis=0)
-            e_ivt_m = e_ivt_data.mean(axis=0)
+            n_ivt_m = n_ivt_mean
+            e_ivt_m = e_ivt_mean
             n_ivt = n_ivt_data[t]
             e_ivt = e_ivt_data[t]
             # T = t_data[t]
