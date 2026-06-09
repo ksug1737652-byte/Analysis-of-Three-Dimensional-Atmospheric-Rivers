@@ -36,7 +36,7 @@ from metpy.units import units
 from metpy.constants import earth_avg_radius
 import metpy.calc as mpcalc
 
-years = np.arange(1979,2024,1)[::1]
+years = np.arange(1979,2014,1)[::-1]
 months = np.arange(1,13,1)
 
 g = 9.80665 
@@ -50,15 +50,13 @@ timescale = 1
 timesperday = 24/timescale
 lat_res = 1 #再解析データの南北解像度 deg.
 lon_res = 1 #再解析データの東西解像度 deg.
-min_size = (20/lat_res)*(3/lon_res) #構造物を構成する格子点の最小値，20lat*3lonの構造を想定，幅の最小値が３度，長さが２０度
-min_hits = 8 #横縦方向に構造物がある点を構造の一部とする　一点による連結は別の構造物として認識する
+min_size = (1/lat_res)*(1/lon_res) #構造物を構成する格子点の最小値，20lat*3lonの構造を想定，幅の最小値が３度，長さが２０度
 # de_min_hits = 4 #コの字で囲われている点を構造の一部と認識する
-threshold_ratio = 4/26 #コの字で囲われている点を構造の一部と認識する
 
 data_dir = '/Volumes/Pegasus32 R6/takahashi/era5/data/'
 clim_dir = '/Volumes/Pegasus32 R6/takahashi/era5/data/monthly/pressure/'
 
-out_dir = '/Volumes/Pegasus32 R6/takahashi/era5/ar_out_3d_monthly_threshold_02/' 
+out_dir = '/Volumes/Pegasus32 R8/takahashi/era5/ar_out_3d_monthly_threshold/' 
 #creating output files
 if not os.path.exists('{}threshold_data'.format(out_dir)):
     os.makedirs('{}threshold_data'.format(out_dir))
@@ -77,8 +75,17 @@ land_mask_file = '{}input_data/lsm_2023-1.nc'.format(ar_dir)
 land_mask_data = xr.open_dataset(land_mask_file)['lsm'].sel(latitude=slice(0,-90))
 d2,d3 = grid_areas.values.shape
 
-
-# print('Calculating climatological mean...')
+ga = grid_areas.copy()
+zeros = 0*ga.values
+SH = zeros.copy()
+NH = zeros.copy()
+SH[:,:] = 1
+NH[:91,:] = 1
+Antarctic_factor = zeros.copy()
+Antarctic_factor[61:,:] = 1
+Antarctica = Antarctic_factor*land_mask_data[0].values
+print(Antarctica.shape)
+print('Calculating climatological mean...')
 # q_mean = 0
 # u_mean = 0
 # v_mean = 0
@@ -106,9 +113,9 @@ d2,d3 = grid_areas.values.shape
 
 # np.save('calc_files/era_climatology_n_ivt.npy',n_ivt_mean)
 # np.save('calc_files/era_climatology_e_ivt.npy',e_ivt_mean)
-# np.save('calc_files/climatology_q.npy',q_mean)
-# np.save('calc_files/climatology_u.npy',u_mean)
-# np.save('calc_files/climatology_v.npy',v_mean)
+# # np.save('calc_files/climatology_q.npy',q_mean)
+# # np.save('calc_files/climatology_u.npy',u_mean)
+# # np.save('calc_files/climatology_v.npy',v_mean)
 # print('Climatological mean done...')
 
 print('Loading climatological datasets...')
@@ -132,22 +139,40 @@ print('Start AR detection')
 for year in years:
     # with open('{}ar_characteristics/new_ar_details_{}.csv'.format(out_dir,year),'w',newline='') as f:
     #     thewriter = csv.writer(f)
-    #     thewriter.writerow(['{}'.format('year'), '{}'.format('month'), '{}'.format('day'), '{}'.format('hour'), '{}'.format('ar_number'), '{}'.format('length'), '{}'.format('width'), '{}'.format('aspect'), '{}'.format('ar_size')])
+    #     thewriter.writerow(['{}'.format('year'), '{}'.format('month'), '{}'.format('day'), '{}'.format('hour'), '{}'.format('ar_number'), '{}'.format('length'), '{}'.format('width'), '{}'.format('aspect'), '{}'.format('ar_size'),'{}'.format('max_ivt'),'{}'.format('max_uivt'),'{}'.format('max_vivt'),'{}'.format('land_max_ivt'),'{}'.format('land_max_uivt'),'{}'.format('land_max_vivt')])
 
     for month in months:
-        dir = '{}pressure/q/q_{}{:0=2}.nc'.format(data_dir,year,month)
-        dataset = xr.open_dataset(dir)['q'].sel(level=slice(300,1000)).sel(latitude=slice(0,-90))#70-120, 20-50
-        pressure = dataset.level.values
-        time = dataset.time
-        # print(time.values.shape)
-        # print(time.values[initial:initial+interval])
-        q_data = dataset
-        dir = '{}pressure/v/v_{}{:0=2}.nc'.format(data_dir,year,month)
-        dataset = xr.open_dataset(dir)['v'].sel(level=slice(300,1000)).sel(latitude=slice(0,-90))#70-120, 20-50
-        v_data = dataset
-        dir = '{}pressure/u/u_{}{:0=2}.nc'.format(data_dir,year,month)
-        dataset = xr.open_dataset(dir)['u'].sel(level=slice(300,1000)).sel(latitude=slice(0,-90))#70-120, 20-50
-        u_data = dataset
+        
+        if year <= 2023:
+            dir = '{}pressure/q/q_{}{:0=2}.nc'.format(data_dir,year,month)
+            dataset = xr.open_dataset(dir)['q'].sel(level=slice(300,1000)).sel(latitude=slice(0,-90))#70-120, 20-50
+            pressure = dataset.level.values
+            time = dataset.time
+            # print(time.values.shape)
+            # print(time.values[initial:initial+interval])
+            q_data = dataset
+            dir = '{}pressure/v/v_{}{:0=2}.nc'.format(data_dir,year,month)
+            dataset = xr.open_dataset(dir)['v'].sel(level=slice(300,1000)).sel(latitude=slice(0,-90))#70-120, 20-50
+            v_data = dataset
+            dir = '{}pressure/u/u_{}{:0=2}.nc'.format(data_dir,year,month)
+            dataset = xr.open_dataset(dir)['u'].sel(level=slice(300,1000)).sel(latitude=slice(0,-90))#70-120, 20-50
+            u_data = dataset
+        else:
+            dir = '{}pressure/q/q_{}{:0=2}.nc'.format(data_dir,year,month)
+            dataset = xr.open_dataset(dir)['q'][:,::-1,:,:].sel(pressure_level=slice(300,1000)).sel(latitude=slice(0,-90))#70-120, 20-50
+            pressure = dataset.pressure_level.values
+            time = dataset.valid_time
+            # print(time.values.shape)
+            # print(time.values[initial:initial+interval])
+            q_data = dataset
+            dir = '{}pressure/v/v_{}{:0=2}.nc'.format(data_dir,year,month)
+            dataset = xr.open_dataset(dir)['v'][:,::-1,:,:].sel(pressure_level=slice(300,1000)).sel(latitude=slice(0,-90))#70-120, 20-50
+            v_data = dataset
+            dir = '{}pressure/u/u_{}{:0=2}.nc'.format(data_dir,year,month)
+            dataset = xr.open_dataset(dir)['u'][:,::-1,:,:].sel(pressure_level=slice(300,1000)).sel(latitude=slice(0,-90))#70-120, 20-50
+            u_data = dataset
+            
+        # u_data = v_data
         # dir = '{}pressure/w/w_{}{:0=2}.nc'.format(data_dir,year,month)
         # dataset = xr.open_dataset(dir)['w'].sel(level=slice(100,1000)).sel(latitude=slice(-20,-90))
         # w = dataset.sel(time='{}-{:0=2}-{:0=2}-{:0=2}'.format(year,month,day,hour))
@@ -191,19 +216,48 @@ for year in years:
         # u_thresh = dataset
             
 
-        mt_for_max = q_data.copy()
-        mt_zonal_max = q_data.copy()[0,:,:,0]
-        mt_zonal_mean = q_data.copy()[0,:,:,0]
+        mean_file = f"{out_dir}threshold_data/mean-{year}-{month}.nc"
+        max_file  = f"{out_dir}threshold_data/max-{year}-{month}.nc"
 
-        spressure_data = (q_data.values*0+1)*sp_data.values[:,None,:,:]
-        pressure_data = (q_data.values*0+1)*pressure[None,:,None,None]
-        mt_for_max.values = np.power((np.power(q_data.values*v_data.values,2)+np.power(q_data.values*u_data.values,2)),0.5)
-        mt_for_max.values[pressure_data>spressure_data] = np.nan
-        mt_zonal_max.values = np.nanmean(np.nanmax((mt_for_max.values - np.nanmean(mt_for_max.values,axis=3)[:,:,:,None]),axis=3),axis=0)
-        mt_zonal_mean.values = np.nanmean(np.nanmean(mt_for_max.values,axis=3),axis=0)
 
+        surface_pressure_data = (q_data.values*0+1) * sp_data.values[:, None, :, :]
+        pressure_data = (q_data.values*0+1) * pressure[None, :, None, None]
+
+        if os.path.exists(mean_file) and os.path.exists(max_file):
+            mt_zonal_mean = xr.open_dataset(mean_file)['threshold']
+            mt_zonal_max  = xr.open_dataset(max_file)['threshold']
+        else:
+            mt_for_max = q_data.copy()
+            mt_zonal_max = q_data.copy()[0, :, :, 0]
+            mt_zonal_mean = q_data.copy()[0, :, :, 0]
+
+            mt_for_max.values = np.sqrt((q_data.values*v_data.values)**2 + (q_data.values*u_data.values)**2)
+            mt_for_max.values[pressure_data > surface_pressure_data] = np.nan
+
+            mt_zonal_max.values = np.nanmean(
+                np.nanmax(
+                    mt_for_max.values - np.nanmean(mt_for_max.values, axis=3)[:, :, :, None],
+                    axis=3
+                ),
+                axis=0
+            )
+            mt_zonal_mean.values = np.nanmean(np.nanmean(mt_for_max.values, axis=3), axis=0)
+
+            xr.DataArray(
+                mt_zonal_mean.values,
+                name='threshold',
+                dims=['level', 'latitude'],
+                coords=(pressure, latitude),
+            ).to_netcdf(mean_file)
+
+            xr.DataArray(
+                mt_zonal_max.values,
+                name='threshold',
+                dims=['level', 'latitude'],
+                coords=(pressure, latitude),
+            ).to_netcdf(max_file)
         ###############################
-        
+
         
         umt_list = []
         vmt_list = []
@@ -220,8 +274,8 @@ for year in years:
             # q_m = q_mean[Din.month-1]
             # u_m = u_mean[Din.month-1]
             # v_m = v_mean[Din.month-1]
-            n_ivt_m = n_ivt_mean[Din.month-1]
-            e_ivt_m = e_ivt_mean[Din.month-1]
+            n_ivt_m = n_ivt_data.mean(axis=0)
+            e_ivt_m = e_ivt_data.mean(axis=0)
             n_ivt = n_ivt_data[t]
             e_ivt = e_ivt_data[t]
             # T = t_data[t]
@@ -413,195 +467,195 @@ for year in years:
             lab_ob_list.append(valid_labels)
             props_ob_list.append(props)
 
-        print('Computing length...')
-        length_list = []
-        length_filter = []
-        for i in range(time.shape[0]):
-            print('computing {}-{}-time step'.format(year,month),'{:0=3}'.format(i+1),'...')
-            timely_length_list = []
-            Filter = []
-            for n,j in enumerate(lab_ob_list[i]):
-                j -= 1
-                ar_mask = object_list[i].copy()
-                ar_mask = np.where(ar_mask == j+1, 1, 0)
-                ar_mask_shadow = ar_mask.max(axis=0)
+        # print('Computing length...')
+        # length_list = []
+        # length_filter = []
+        # for i in range(time.shape[0]):
+        #     print('computing {}-{}-time step'.format(year,month),'{:0=3}'.format(i+1),'...')
+        #     timely_length_list = []
+        #     Filter = []
+        #     for n,j in enumerate(lab_ob_list[i]):
+        #         j -= 1
+        #         ar_mask = object_list[i].copy()
+        #         ar_mask = np.where(ar_mask == j+1, 1, 0)
+        #         ar_mask_shadow = ar_mask.max(axis=0)
 
-                eroded = binary_erosion(ar_mask_shadow)
-                edge = ar_mask_shadow ^ eroded  # XORで外周を取得
-                # r = props_ob_list[i][num_ob_list[i][n]]
-                # center = r.centroid
-                # central_coord = (latitude[int(round(center[1],0))],longitude[int(round(center[2],0))])
-                # print(r.area)
+        #         eroded = binary_erosion(ar_mask_shadow)
+        #         edge = ar_mask_shadow ^ eroded  # XORで外周を取得
+        #         # r = props_ob_list[i][num_ob_list[i][n]]
+        #         # center = r.centroid
+        #         # central_coord = (latitude[int(round(center[1],0))],longitude[int(round(center[2],0))])
+        #         # print(r.area)
                 
-                coords = np.argwhere(edge)  # (y, x)
-                if len(coords) < 40:
-                    max_distance = 0
-                    timely_length_list.append(max_distance)
-                    Filter.append(j+1)
-                    continue
+        #         coords = np.argwhere(edge)  # (y, x)
+        #         if len(coords) < 40:
+        #             max_distance = 0
+        #             timely_length_list.append(max_distance)
+        #             Filter.append(j+1)
+        #             continue
 
-                # 緯度経度の抽出
-                latlon_points = [
-                    (latitude[y], longitude[x])
-                    for y, x in coords
-                ]
-                # print(len(latlon_points))
-                # 全点間ペアの geodesic 距離を計算（効率は低めだが高精度）
-                # max_distance = 0
-                # for k in range(len(latlon_points)):
-                #     for l in range(k + 1, len(latlon_points)):
-                #         dist = distance(latlon_points[k], latlon_points[l]).km
-                #         # dist_center = distance(latlon_points[k], central_coord).km + distance(central_coord, latlon_points[l]).km
-                #         if dist > max_distance:
-                #             # print(dist)
-                #             max_distance = dist
-                #             # max_distance_center = dist_center
+        #         # 緯度経度の抽出
+        #         latlon_points = [
+        #             (latitude[y], longitude[x])
+        #             for y, x in coords
+        #         ]
+        #         # print(len(latlon_points))
+        #         # 全点間ペアの geodesic 距離を計算（効率は低めだが高精度）
+        #         # max_distance = 0
+        #         # for k in range(len(latlon_points)):
+        #         #     for l in range(k + 1, len(latlon_points)):
+        #         #         dist = distance(latlon_points[k], latlon_points[l]).km
+        #         #         # dist_center = distance(latlon_points[k], central_coord).km + distance(central_coord, latlon_points[l]).km
+        #         #         if dist > max_distance:
+        #         #             # print(dist)
+        #         #             max_distance = dist
+        #         #             # max_distance_center = dist_center
                             
-                # print(max_distance)
-                # max_distance = 0
+        #         # print(max_distance)
+        #         # max_distance = 0
                 
-                # WGS84 楕円体
-                geod = Geod(ellps="WGS84")
+        #         # WGS84 楕円体
+        #         geod = Geod(ellps="WGS84")
 
-                # latlon_points を配列化（[ (lat, lon), ... ]）
-                points = np.array(latlon_points)
-                lats = points[:, 0]
-                lons = points[:, 1]
+        #         # latlon_points を配列化（[ (lat, lon), ... ]）
+        #         points = np.array(latlon_points)
+        #         lats = points[:, 0]
+        #         lons = points[:, 1]
 
-                # 全組み合わせのインデックス
-                i_idx, j_idx = np.triu_indices(len(points), k=1)  # k=1でi<jの組だけ
+        #         # 全組み合わせのインデックス
+        #         i_idx, j_idx = np.triu_indices(len(points), k=1)  # k=1でi<jの組だけ
 
-                # 各組の座標を抽出
-                lon1 = lons[i_idx]
-                lat1 = lats[i_idx]
-                lon2 = lons[j_idx]
-                lat2 = lats[j_idx]
+        #         # 各組の座標を抽出
+        #         lon1 = lons[i_idx]
+        #         lat1 = lats[i_idx]
+        #         lon2 = lons[j_idx]
+        #         lat2 = lats[j_idx]
 
-                # 一括距離計算（m）
-                _, _, dist_m = geod.inv(lon1, lat1, lon2, lat2)
+        #         # 一括距離計算（m）
+        #         _, _, dist_m = geod.inv(lon1, lat1, lon2, lat2)
 
-                # 最大距離 (km)
-                max_distance = np.max(dist_m) / 1000.0
-                # print(max_distance)
-
-
-                timely_length_list.append(max_distance)
-
-                if max_distance > min_length:
-                    length_check = True
-                else:
-                    length_check = False
-                if length_check == False:
-                    Filter.append(j+1)
-            #timely_width_list.append(min(objective_length_list))
-            length_list.append(timely_length_list)
-            length_filter.append(Filter)
-        #print(len(length_list[0]))
+        #         # 最大距離 (km)
+        #         max_distance = np.max(dist_m) / 1000.0
+        #         # print(max_distance)
 
 
-        print('Computing length/width ratio...')
-        grid_areas_file = '{}input_data/grid_areas.nc'.format(ar_dir)
-        grid_areas = xr.open_dataset(grid_areas_file)['unknown'].sel(latitude=slice(0,-90))
-        ar_area_list = []
-        ar_iwv_list = []
-        for i in range(time.shape[0]):
-            timely_area_list = []
-            timely_wv_list = []
-            for n,j in enumerate(lab_ob_list[i]):
-                j -= 1
-                ar_mask = object_list[i].copy()
-                ar_mask = np.where(ar_mask == j+1, 1, 0)
-                ar_grid_area = ar_mask.max(axis=0) * grid_areas.values
-                ar_area = ar_grid_area.sum()
-                timely_area_list.append(ar_area)
-                #calculating magnitude of Water Vapor included in AR
-            ar_area_list.append(timely_area_list)
+        #         timely_length_list.append(max_distance)
+
+        #         if max_distance > min_length:
+        #             length_check = True
+        #         else:
+        #             length_check = False
+        #         if length_check == False:
+        #             Filter.append(j+1)
+        #     #timely_width_list.append(min(objective_length_list))
+        #     length_list.append(timely_length_list)
+        #     length_filter.append(Filter)
+        # #print(len(length_list[0]))
 
 
-        width_list = []
-        for i in range(time.shape[0]):
-            widths = []
-            for n,j in enumerate(lab_ob_list[i]):
-                j -= 1
-                if (length_list[i][n] > 0):
-                    width = ar_area_list[i][n] / length_list[i][n]
-                    widths.append(width)
-                else:
-                    width = 0
-                    widths.append(width)
-            width_list.append(widths)
+        # print('Computing length/width ratio...')
+        # grid_areas_file = '{}input_data/grid_areas.nc'.format(ar_dir)
+        # grid_areas = xr.open_dataset(grid_areas_file)['unknown'].sel(latitude=slice(0,-90))
+        # ar_area_list = []
+        # ar_iwv_list = []
+        # for i in range(time.shape[0]):
+        #     timely_area_list = []
+        #     timely_wv_list = []
+        #     for n,j in enumerate(lab_ob_list[i]):
+        #         j -= 1
+        #         ar_mask = object_list[i].copy()
+        #         ar_mask = np.where(ar_mask == j+1, 1, 0)
+        #         ar_grid_area = ar_mask.max(axis=0) * grid_areas.values
+        #         ar_area = ar_grid_area.sum()
+        #         timely_area_list.append(ar_area)
+        #         #calculating magnitude of Water Vapor included in AR
+        #     ar_area_list.append(timely_area_list)
 
-        aspect_filter = []
-        aspect_list = []
-        for i in range(time.shape[0]):
-            Filter = []
-            timely_aspect_list = []
-            for n,j in enumerate(lab_ob_list[i]):
-                j -= 1
-                if ((j+1) not in length_filter[i]):
-                    narrowness_check = ((length_list[i][n] 
-                                        / width_list[i][n]) > min_aspect)
-                    aspect = length_list[i][n] / width_list[i][n]
-                    timely_aspect_list.append(aspect)
-                    if narrowness_check == False:
-                        Filter.append(j+1)
-                else:
-                    timely_aspect_list.append(0)
-            aspect_filter.append(Filter)
-            aspect_list.append(timely_aspect_list)
 
-        mean_ivt_list = []
-        max_ivt_list = []
-        for i in range(time.shape[0]):
-            NewList_max = []
-            for n,j in enumerate(lab_ob_list[i]):
-                j -= 1
-                ar_mask = object_list[i].copy()
-                ar_mask = np.where(ar_mask == j+1, 1, 0)
-                ar_ivt = ar_mask.max(axis=0)*ivt_list[i].values
-                NewList_max.append(ar_ivt.max())
-            max_ivt_list.append(NewList_max)
+        # width_list = []
+        # for i in range(time.shape[0]):
+        #     widths = []
+        #     for n,j in enumerate(lab_ob_list[i]):
+        #         j -= 1
+        #         if (length_list[i][n] > 0):
+        #             width = ar_area_list[i][n] / length_list[i][n]
+        #             widths.append(width)
+        #         else:
+        #             width = 0
+        #             widths.append(width)
+        #     width_list.append(widths)
 
-        ivt_filter = []
-        for i in range(time.shape[0]):
-            Filter = []
-            for n,j in enumerate(lab_ob_list[i]):
-                j -= 1
-                if ((max_ivt_list[i][n]>=ivt_filtering)):
-                    ivt_check = True
-                else:
-                    ivt_check = False
-                if ivt_check == False:
-                    Filter.append(j+1)
-            ivt_filter.append(Filter)
+        # aspect_filter = []
+        # aspect_list = []
+        # for i in range(time.shape[0]):
+        #     Filter = []
+        #     timely_aspect_list = []
+        #     for n,j in enumerate(lab_ob_list[i]):
+        #         j -= 1
+        #         if ((j+1) not in length_filter[i]):
+        #             narrowness_check = ((length_list[i][n] 
+        #                                 / width_list[i][n]) > min_aspect)
+        #             aspect = length_list[i][n] / width_list[i][n]
+        #             timely_aspect_list.append(aspect)
+        #             if narrowness_check == False:
+        #                 Filter.append(j+1)
+        #         else:
+        #             timely_aspect_list.append(0)
+        #     aspect_filter.append(Filter)
+        #     aspect_list.append(timely_aspect_list)
 
-        print('Computing ar_mask data...')
-        ar_mask_data = q_data.values*0
-        for i in range(time.shape[0]):
-            for n,j in enumerate(lab_ob_list[i]):
-                j -= 1
-                if (
-                    ((j+1) not in length_filter[i])
-                    & ((j+1) not in aspect_filter[i])
-                    & ((j+1) not in ivt_filter[i])
-                    ):
-                    ar_mask = object_list[i].copy()
-                    ar_mask = np.where(ar_mask == j+1, 1, 0)
-                    ar_mask_data[i] += ar_mask
-                    # ar_mask_data_2d[i] += ar_mask_list[i][n]                
+        # mean_ivt_list = []
+        # max_ivt_list = []
+        # for i in range(time.shape[0]):
+        #     NewList_max = []
+        #     for n,j in enumerate(lab_ob_list[i]):
+        #         j -= 1
+        #         ar_mask = object_list[i].copy()
+        #         ar_mask = np.where(ar_mask == j+1, 1, 0)
+        #         ar_ivt = ar_mask.max(axis=0)*ivt_list[i].values
+        #         NewList_max.append(ar_ivt.max())
+        #     max_ivt_list.append(NewList_max)
 
-        ar_without_ivt_filter = q_data.values*0
-        for i in range(time.shape[0]):
-            for n,j in enumerate(lab_ob_list[i]):
-                j -= 1
-                if (
-                    ((j+1) not in length_filter[i])
-                    & ((j+1) not in aspect_filter[i])
-                    ):
-                    ar_mask = object_list[i].copy()
-                    ar_mask = np.where(ar_mask == j+1, 1, 0)
-                    ar_without_ivt_filter[i] += ar_mask
-                    # ar_mask_data_2d[i] += ar_mask_list[i][n]                
+        # ivt_filter = []
+        # for i in range(time.shape[0]):
+        #     Filter = []
+        #     for n,j in enumerate(lab_ob_list[i]):
+        #         j -= 1
+        #         if ((max_ivt_list[i][n]>=ivt_filtering)):
+        #             ivt_check = True
+        #         else:
+        #             ivt_check = False
+        #         if ivt_check == False:
+        #             Filter.append(j+1)
+        #     ivt_filter.append(Filter)
+
+        # print('Computing ar_mask data...')
+        # ar_mask_data = q_data.values*0
+        # for i in range(time.shape[0]):
+        #     for n,j in enumerate(lab_ob_list[i]):
+        #         j -= 1
+        #         if (
+        #             ((j+1) not in length_filter[i])
+        #             & ((j+1) not in aspect_filter[i])
+        #             & ((j+1) not in ivt_filter[i])
+        #             ):
+        #             ar_mask = object_list[i].copy()
+        #             ar_mask = np.where(ar_mask == j+1, 1, 0)
+        #             ar_mask_data[i] += ar_mask
+        #             # ar_mask_data_2d[i] += ar_mask_list[i][n]                
+
+        # ar_without_ivt_filter = q_data.values*0
+        # for i in range(time.shape[0]):
+        #     for n,j in enumerate(lab_ob_list[i]):
+        #         j -= 1
+        #         if (
+        #             ((j+1) not in length_filter[i])
+        #             & ((j+1) not in aspect_filter[i])
+        #             ):
+        #             ar_mask = object_list[i].copy()
+        #             ar_mask = np.where(ar_mask == j+1, 1, 0)
+        #             ar_without_ivt_filter[i] += ar_mask
+        #             # ar_mask_data_2d[i] += ar_mask_list[i][n]                
 
 
         ar_without_geometric = q_data.values*0
@@ -611,49 +665,59 @@ for year in years:
 
         print('Saving ar characteristics...')
 
-        ar_mask_datasets = q_data.values*0
-        for i in range(time.shape[0]):
-            dt = i%timesperday
-            hours = math.floor(dt*timescale)
-            days = math.floor(1+(i-dt)/timesperday)
-            Count=0
-            for n,j in enumerate(lab_ob_list[i]):
-                # print(n,j)
-                j -= 1
-                if (
-                    ((j+1) not in length_filter[i])
-                    & ((j+1) not in aspect_filter[i])
-                    & ((j+1) not in ivt_filter[i])
-                    ):
-                    Count += 1
+        # ar_mask_datasets = q_data.values*0
+        # for i in range(time.shape[0]):
+        #     dt = i%timesperday
+        #     hours = math.floor(dt*timescale)
+        #     days = math.floor(1+(i-dt)/timesperday)
+        #     Count=0
+            
+        #     uivt = e_ivt_data[i]
+        #     vivt = n_ivt_data[i]
+        #     ivt = np.power(np.power(vivt.values, 2) + np.power(uivt.values, 2), 1/2)
+
+        #     for n,j in enumerate(lab_ob_list[i]):
+        #         # print(n,j)
+        #         j -= 1
+        #         if (
+        #             ((j+1) not in length_filter[i])
+        #             & ((j+1) not in aspect_filter[i])
+        #             & ((j+1) not in ivt_filter[i])
+        #             ):
                     
-                    #Saving individual ar mask data
-                    ind_ar_mask = object_list[i].copy()
-                    ind_ar_mask = np.where(ind_ar_mask == j + 1,1,0)
-                    # print(ar_list[i][n])
-                    ar_mask_datasets[i] += ind_ar_mask*Count#*ar_list[i][n]#*Count
-                    # ar_mask_datasets_2d[i] += ar_mask_list[i][n]*ar_list[i][n]#*Count
+        #             #Saving individual ar mask data
+        #             ind_ar_mask = object_list[i].copy()
+        #             ind_ar_mask = np.where(ind_ar_mask == j + 1,1,0)
+        #             # print(ind_ar_mask)
+                    
+        #             ar_test = ind_ar_mask.copy()
+        #             Pressure_data = (ar_test) * pressure_data[:,:,:]
+        #             spressure_data = ((ar_test) * surface_pressure_data[i,:,:,:]) - 100
+        #             ar_test[Pressure_data<=spressure_data] = 0
+                    
+        #             # print(ar_test.max())
+                    
+        #             if ar_test.max() > 0:
+                    
+        #                 # print(ar_list[i][n])
+        #                 Count += 1
+        #                 ar_mask_datasets[i] += ind_ar_mask*Count#*ar_list[i][n]#*Count
+        #                 # ar_mask_datasets_2d[i] += ar_mask_list[i][n]*ar_list[i][n]#*Count
+        #                 ind_ar_mask = np.where(ind_ar_mask.max(axis=0)>0,1,0)
+        #                 max_ivt = (ind_ar_mask*ivt)[65,:].max()
+        #                 land_max_ivt = (Antarctica*ind_ar_mask*ivt).max()
+        #                 max_uivt = (ind_ar_mask*uivt.values)[65,:].max()
+        #                 land_max_uivt = np.abs(Antarctica*ind_ar_mask*uivt.values).max()
+        #                 max_vivt = (ind_ar_mask*vivt.values)[65,:].min()
+        #                 land_max_vivt = (Antarctica*ind_ar_mask*vivt.values).min()
 
-                    with open('{}ar_characteristics/new_ar_details_{}.csv'.format(out_dir,year),'a',newline='') as f:
-                        thewriter = csv.writer(f)
-                        thewriter.writerow(['{}'.format(year), '{}'.format(month), '{}'.format(days), '{}'.format(hours), '{}'.format(Count), '{}'.format(length_list[i][n]), '{}'.format(width_list[i][n]), '{}'.format(aspect_list[i][n]), '{}'.format(ar_area_list[i][n])])
+        #                 with open('{}ar_characteristics/new_ar_details_{}.csv'.format(out_dir,year),'a',newline='') as f:
+        #                     thewriter = csv.writer(f)
+        #                     thewriter.writerow(['{}'.format(year), '{}'.format(month), '{}'.format(days), '{}'.format(hours), '{}'.format(Count), '{}'.format(length_list[i][n]), '{}'.format(width_list[i][n]), '{}'.format(aspect_list[i][n]), '{}'.format(ar_area_list[i][n]),'{}'.format(max_ivt),'{}'.format(max_uivt),'{}'.format(max_vivt),'{}'.format(land_max_ivt),'{}'.format(land_max_uivt),'{}'.format(land_max_vivt)])
 
-        print('Constructing ar projection...')
+        # print('Constructing ar projection...')
         
-        ar_test = ar_mask_datasets.copy()
-        pressure_data = (ar_test) * pressure_data[None,:,:,:]
-        spressure_data = ((ar_test) * spressure_data[None,:,:,:]) - 100
-        ar_test[pressure_data<=spressure_data] = 0
-        ob_list = [np.unique(ar_test[i])[~(np.unique(ar_test[i])==0)] for i in range(ar_test.shape[0])]
-        # print(ob_list)
-
-        masked = np.empty_like(ar_test)
-
-        for t in range(ar_test.shape[0]):  # time方向にループ
-            # print(t)
-            valid_values = ob_list[t]
-            masked[t] = np.where(np.isin(ar_mask_datasets[t], valid_values), ar_mask_datasets[t], 0)
-        ar_ground_mask_data = np.where(masked>0,1,0)
+        # ar_ground_mask_data = np.where(ar_mask_datasets>0,1,0)
 
         print('Saving ar datasets...')
 
@@ -672,47 +736,47 @@ for year in years:
         outfile_ar_mask = '{}mask_data/AR_candidates1_mask-{}-{}.nc'.format(out_dir,year,month)
         out_AR_mask.to_netcdf(outfile_ar_mask)
 
-        out_AR_mask = xr.DataArray(
-            ar_without_ivt_filter,
-            name = 'ar_mask',
-            dims = ['time','level','latitude','longitude'],
-            coords = (
-                time,pressure,latitude,longitude,
-            ),
-            attrs = {
-                'long_name':'ARs Mask Data without IVT filter',
-                'units':'#'
-            },
-        )
-        outfile_ar_mask = '{}mask_data/AR_candidates2_mask-{}-{}.nc'.format(out_dir,year,month)
-        out_AR_mask.to_netcdf(outfile_ar_mask)
+        # out_AR_mask = xr.DataArray(
+        #     ar_without_ivt_filter,
+        #     name = 'ar_mask',
+        #     dims = ['time','level','latitude','longitude'],
+        #     coords = (
+        #         time,pressure,latitude,longitude,
+        #     ),
+        #     attrs = {
+        #         'long_name':'ARs Mask Data without IVT filter',
+        #         'units':'#'
+        #     },
+        # )
+        # outfile_ar_mask = '{}mask_data/AR_candidates2_mask-{}-{}.nc'.format(out_dir,year,month)
+        # out_AR_mask.to_netcdf(outfile_ar_mask)
 
-        out_AR_mask = xr.DataArray(
-            ar_ground_mask_data,
-            name = 'ar_mask',
-            dims = ['time','level','latitude','longitude'],
-            coords = (
-                time,pressure,latitude,longitude,
-            ),
-            attrs = {
-                'long_name':'ARs Mask Data',
-                'units':'#'
-            },
-        )
-        outfile_ar_mask = '{}ar_ivt_data/select_groundAR_mask-{}-{}.nc'.format(out_dir,year,month)
-        out_AR_mask.to_netcdf(outfile_ar_mask)
+        # out_AR_mask = xr.DataArray(
+        #     ar_ground_mask_data,
+        #     name = 'ar_mask',
+        #     dims = ['time','level','latitude','longitude'],
+        #     coords = (
+        #         time,pressure,latitude,longitude,
+        #     ),
+        #     attrs = {
+        #         'long_name':'ARs Mask Data',
+        #         'units':'#'
+        #     },
+        # )
+        # outfile_ar_mask = '{}ar_ivt_data/select_groundAR_mask-{}-{}.nc'.format(out_dir,year,month)
+        # out_AR_mask.to_netcdf(outfile_ar_mask)
 
-        out_AR_mask = xr.DataArray(
-            ar_mask_datasets,
-            name = 'ar_mask',
-            dims = ['time','level','latitude','longitude'],
-            coords = (
-                time,pressure,latitude,longitude,
-            ),
-            attrs = {
-                'long_name':'ARs Mask Data',
-                'units':'no.'
-            },
-        )
-        outfile_ar_mask = '{}mask_data/select_AR_mask_num-{}-{}.nc'.format(out_dir,year,month)
-        out_AR_mask.to_netcdf(outfile_ar_mask)
+        # out_AR_mask = xr.DataArray(
+        #     ar_mask_datasets,
+        #     name = 'ar_mask',
+        #     dims = ['time','level','latitude','longitude'],
+        #     coords = (
+        #         time,pressure,latitude,longitude,
+        #     ),
+        #     attrs = {
+        #         'long_name':'ARs Mask Data',
+        #         'units':'no.'
+        #     },
+        # )
+        # outfile_ar_mask = '{}mask_data/select_AR_mask_num-{}-{}.nc'.format(out_dir,year,month)
+        # out_AR_mask.to_netcdf(outfile_ar_mask)
